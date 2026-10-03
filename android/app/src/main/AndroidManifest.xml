@@ -1,59 +1,66 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Nearby Connections -->
-    <uses-permission
-        android:name="android.permission.ACCESS_WIFI_STATE"
-        android:maxSdkVersion="31" />
+    <!-- ============================================================ -->
+    <!-- NEARBY CONNECTIONS PERMISSIONS                                -->
+    <!-- ============================================================ -->
 
-    <uses-permission
-        android:name="android.permission.CHANGE_WIFI_STATE"
-        android:maxSdkVersion="31" />
+    <!-- WiFi State (for WiFi Direct) -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
 
     <!-- Bluetooth: Android 11 and below -->
     <uses-permission
         android:name="android.permission.BLUETOOTH"
         android:maxSdkVersion="30" />
-
     <uses-permission
         android:name="android.permission.BLUETOOTH_ADMIN"
         android:maxSdkVersion="30" />
 
-    <!-- Location -->
-    <uses-permission
-        android:name="android.permission.ACCESS_COARSE_LOCATION"
-        android:maxSdkVersion="28" />
+    <!-- Location: REQUIRED for Bluetooth scanning on ALL Android versions -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
-    <uses-permission
-        android:name="android.permission.ACCESS_FINE_LOCATION"
-        android:minSdkVersion="29"
-        android:maxSdkVersion="31" />
-
-    <!-- Bluetooth: Android 12+ -->
+    <!-- Bluetooth: Android 12+ (API 31+) -->
     <uses-permission
         android:name="android.permission.BLUETOOTH_ADVERTISE"
-        android:minSdkVersion="31" />
-
-    <uses-permission
-        android:name="android.permission.BLUETOOTH_CONNECT"
-        android:minSdkVersion="31" />
-
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission
         android:name="android.permission.BLUETOOTH_SCAN"
-        android:minSdkVersion="31" />
+        android:usesPermissionFlags="neverForLocation" />
 
-    <!-- Nearby Wi-Fi: Android 12+ -->
+    <!-- Nearby WiFi: Android 13+ (API 33+) -->
     <uses-permission
         android:name="android.permission.NEARBY_WIFI_DEVICES"
-        android:minSdkVersion="32" />
+        android:usesPermissionFlags="neverForLocation" />
 
     <!-- Internet (for network diagnostic dashboard) -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- ============================================================ -->
+    <!-- BLUETOOTH FEATURE DECLARATIONS                                -->
+    <!-- ============================================================ -->
+
+    <uses-feature
+        android:name="android.hardware.bluetooth"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.wifi.direct"
+        android:required="false" />
+
+    <!-- ============================================================ -->
+    <!-- APPLICATION                                                    -->
+    <!-- ============================================================ -->
+
     <application
         android:label="portfolio_app"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -63,15 +70,17 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
+
             <meta-data
-              android:name="io.flutter.embedding.android.NormalTheme"
-              android:resource="@style/NormalTheme"
-              />
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
+
             <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
@@ -79,8 +88,8 @@
 
     <queries>
         <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT"/>
-            <data android:mimeType="text/plain"/>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
         </intent>
     </queries>
 </manifest>

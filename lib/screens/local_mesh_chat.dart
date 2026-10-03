@@ -55,20 +55,94 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
   @override
   void initState() {
     super.initState();
-
-    if (!kIsWeb) {
-      _requestPermissions();
-    }
+    _requestPermissions();
   }
 
+  // ============================================================
+  // PERMISSIONS
+  // ============================================================
+
   Future<void> _requestPermissions() async {
-    await [
+    if (kIsWeb) return;
+
+    final permissions = <Permission>[
+      Permission.location,
+      Permission.locationWhenInUse,
+      Permission.bluetooth,
       Permission.bluetoothScan,
       Permission.bluetoothConnect,
       Permission.bluetoothAdvertise,
-      Permission.location,
-    ].request();
+      Permission.nearbyWifiDevices,
+    ];
+
+    final Map<Permission, PermissionStatus> statuses = await permissions
+        .request();
+
+    statuses.forEach((permission, status) {
+      debugPrint('Permission $permission: $status');
+    });
+
+    if (!mounted) return;
+
+    final locationGranted = statuses[Permission.location]?.isGranted ?? false;
+    final bluetoothGranted =
+        (statuses[Permission.bluetoothScan]?.isGranted ?? false) &&
+        (statuses[Permission.bluetoothConnect]?.isGranted ?? false);
+
+    if (!locationGranted || !bluetoothGranted) {
+      _showPermissionDialog();
+    }
   }
+
+  void _showPermissionDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: cream,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: const Text(
+            'Permissions Required',
+            style: TextStyle(color: darkText, fontWeight: FontWeight.w800),
+          ),
+          content: const Text(
+            'This app needs the following permissions to work:\n\n'
+            '• Location (for Bluetooth scanning)\n'
+            '• Bluetooth Scan\n'
+            '• Bluetooth Connect\n'
+            '• Bluetooth Advertise\n'
+            '• Nearby Devices\n\n'
+            'Please grant all permissions to use Local Mesh Chat.',
+            style: TextStyle(color: Colors.black54, height: 1.5),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _requestPermissions();
+              },
+              child: const Text('Retry'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                openAppSettings();
+              },
+              style: FilledButton.styleFrom(backgroundColor: forestGreen),
+              child: const Text('Open Settings'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // ADVERTISING
+  // ============================================================
 
   Future<void> _startAdvertising() async {
     if (kIsWeb) {
@@ -97,12 +171,15 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
       });
     } catch (e) {
       if (!mounted) return;
-
       setState(() {
         _status = 'Broadcast error: $e';
       });
     }
   }
+
+  // ============================================================
+  // DISCOVERY
+  // ============================================================
 
   Future<void> _startDiscovery() async {
     if (kIsWeb) {
@@ -112,18 +189,15 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
       });
 
       await Future.delayed(const Duration(milliseconds: 900));
-
       if (!mounted) return;
 
       setState(() {
         _nearbyDevices
           ..clear()
-          ..['demo-phone-01'] = 'Claire\'s Phone';
-
+          ..['demo-phone-01'] = "Claire's Phone";
         _isDiscovering = false;
         _status = '1 device found nearby';
       });
-
       return;
     }
 
@@ -147,10 +221,8 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
             },
         onEndpointLost: (String? endpointId) {
           if (!mounted || endpointId == null) return;
-
           setState(() {
             _nearbyDevices.remove(endpointId);
-
             _status = _nearbyDevices.isEmpty
                 ? 'No nearby devices'
                 : '${_nearbyDevices.length} device(s) found nearby';
@@ -162,14 +234,12 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
 
       setState(() {
         _isDiscovering = result;
-
         if (!result) {
           _status = 'Discovery could not start';
         }
       });
     } catch (e) {
       if (!mounted) return;
-
       setState(() {
         _isDiscovering = false;
         _status = 'Discovery error: $e';
@@ -180,49 +250,42 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
   Future<void> _stopDiscovery() async {
     if (kIsWeb) {
       if (!mounted) return;
-
       setState(() {
         _isDiscovering = false;
-
         _status = _nearbyDevices.isEmpty
             ? 'Ready'
             : '${_nearbyDevices.length} devices found nearby';
       });
-
       return;
     }
 
     await _nearbyService.stopDiscovery();
-
     if (!mounted) return;
-
     setState(() {
       _isDiscovering = false;
       _status = 'Discovery stopped';
     });
   }
 
+  // ============================================================
+  // CONNECT
+  // ============================================================
+
   Future<void> _connectToDevice(String endpointId, String endpointName) async {
     if (kIsWeb) {
       setState(() {
         _status = 'Connecting to $endpointName...';
       });
-
       await Future.delayed(const Duration(milliseconds: 800));
-
       if (!mounted) return;
-
       setState(() {
         _webDemoConnected = true;
         _connectedEndpoint = endpointId;
         _connectedDeviceName = endpointName;
         _status = 'Connected nearby';
-
         _nearbyDevices.remove(endpointId);
       });
-
       _addDemoWelcomeMessages();
-
       return;
     }
 
@@ -240,7 +303,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
       );
     } catch (e) {
       if (!mounted) return;
-
       setState(() {
         _status = 'Connection error: $e';
       });
@@ -249,9 +311,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
 
   void _addDemoWelcomeMessages() {
     if (_messages.isNotEmpty) return;
-
     final now = DateTime.now();
-
     setState(() {
       _messages.addAll([
         ChatMessage(
@@ -271,23 +331,21 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
           timestamp: now.subtract(const Duration(minutes: 1)),
         ),
         ChatMessage(
-          text: 'Awesome! Let’s chat! 🌿',
+          text: "Awesome! Let's chat! 🌿",
           isMine: true,
           timestamp: now,
         ),
       ]);
     });
-
     _scrollToBottom();
   }
 
   // ============================================================
-  // INCOMING CONNECTION
+  // CALLBACKS
   // ============================================================
 
   void _onConnectionInitiated(String endpointId, ConnectionInfo info) {
     if (!mounted) return;
-
     setState(() {
       _pendingConnectionEndpoint = endpointId;
       _pendingConnectionName = info.endpointName;
@@ -299,7 +357,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
   Future<void> _acceptIncomingConnection() async {
     final endpointId = _pendingConnectionEndpoint;
     final info = _pendingConnectionInfo;
-
     if (endpointId == null || info == null) return;
 
     try {
@@ -307,25 +364,19 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
         endpointId: endpointId,
         onPayloadReceived: _onPayloadReceived,
       );
-
       if (!mounted) return;
-
       setState(() {
         _connectedEndpoint = endpointId;
         _connectedDeviceName = info.endpointName;
-
         _pendingConnectionEndpoint = null;
         _pendingConnectionName = null;
         _pendingConnectionInfo = null;
-
         _status = 'Connected nearby';
       });
     } catch (e) {
       if (!mounted) return;
-
       setState(() {
         _status = 'Connection error: $e';
-
         _pendingConnectionEndpoint = null;
         _pendingConnectionName = null;
         _pendingConnectionInfo = null;
@@ -335,13 +386,10 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
 
   Future<void> _rejectIncomingConnection() async {
     final endpointId = _pendingConnectionEndpoint;
-
     if (endpointId != null) {
       await _nearbyService.rejectConnection(endpointId);
     }
-
     if (!mounted) return;
-
     setState(() {
       _pendingConnectionEndpoint = null;
       _pendingConnectionName = null;
@@ -352,23 +400,18 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
 
   void _onConnectionResult(String endpointId, Status status) {
     if (!mounted) return;
-
     setState(() {
       if (status == Status.CONNECTED) {
         _connectedEndpoint = endpointId;
-
         _connectedDeviceName =
             _connectedDeviceName ??
             _nearbyDevices[endpointId] ??
             'Nearby Device';
-
         _status = 'Connected nearby';
-
         _nearbyDevices.remove(endpointId);
       } else {
         _connectedEndpoint = null;
         _connectedDeviceName = null;
-
         _status = 'Connection failed: $status';
       }
     });
@@ -376,14 +419,12 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
 
   void _onDisconnected(String endpointId) {
     if (!mounted) return;
-
     setState(() {
       if (_connectedEndpoint == endpointId) {
         _connectedEndpoint = null;
         _connectedDeviceName = null;
         _webDemoConnected = false;
       }
-
       _status = 'Device disconnected';
     });
   }
@@ -394,27 +435,20 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
 
   void _onPayloadReceived(String endpointId, Payload payload) {
     if (payload.type != PayloadType.BYTES) return;
-
     final Uint8List? bytes = payload.bytes;
-
     if (bytes == null) return;
-
     final String text = utf8.decode(bytes);
-
     if (!mounted) return;
-
     setState(() {
       _messages.add(
         ChatMessage(text: text, isMine: false, timestamp: DateTime.now()),
       );
     });
-
     _scrollToBottom();
   }
 
   Future<void> _sendMessage() async {
     final String text = _messageController.text.trim();
-
     if (text.isEmpty) return;
 
     if (_connectedEndpoint == null) {
@@ -424,7 +458,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
           content: Text('Connect to a nearby device first.'),
         ),
       );
-
       return;
     }
 
@@ -434,15 +467,10 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
           ChatMessage(text: text, isMine: true, timestamp: DateTime.now()),
         );
       });
-
       _messageController.clear();
-
       _scrollToBottom();
-
       await Future.delayed(const Duration(milliseconds: 900));
-
       if (!mounted || !_webDemoConnected) return;
-
       setState(() {
         _messages.add(
           ChatMessage(
@@ -452,34 +480,26 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
           ),
         );
       });
-
       _scrollToBottom();
-
       return;
     }
 
     try {
       final Uint8List data = Uint8List.fromList(utf8.encode(text));
-
       await _nearbyService.sendBytes(
         endpointId: _connectedEndpoint!,
         data: data,
       );
-
       if (!mounted) return;
-
       setState(() {
         _messages.add(
           ChatMessage(text: text, isMine: true, timestamp: DateTime.now()),
         );
       });
-
       _messageController.clear();
-
       _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: Colors.red.shade700,
@@ -492,7 +512,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
-
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 250),
@@ -502,7 +521,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
   }
 
   // ============================================================
-  // MAIN BUILD
+  // BUILD
   // ============================================================
 
   @override
@@ -515,7 +534,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
       body: Stack(
         children: [
           const Positioned.fill(child: _LeafBackground()),
-
           Column(
             children: [
               if (_hasIncomingConnection)
@@ -524,9 +542,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                 Expanded(child: _buildNearbyPanel())
               else
                 _buildConnectedPanel(),
-
               if (!_hasIncomingConnection && !connected) _buildFeatureStrip(),
-
               if (connected) ...[
                 Expanded(child: _buildMessages()),
                 _buildFeatureStrip(),
@@ -538,10 +554,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
       ),
     );
   }
-
-  // ============================================================
-  // APP BAR
-  // ============================================================
 
   PreferredSizeWidget _buildAppBar(bool connected) {
     return AppBar(
@@ -560,9 +572,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                 ? Icons.phone_android_rounded
                 : Icons.forum_rounded,
           ),
-
           const SizedBox(width: 11),
-
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -579,9 +589,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-
                 const SizedBox(height: 2),
-
                 Row(
                   children: [
                     Container(
@@ -594,9 +602,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                         shape: BoxShape.circle,
                       ),
                     ),
-
                     const SizedBox(width: 5),
-
                     Text(
                       _hasIncomingConnection
                           ? 'Connection request'
@@ -619,21 +625,10 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert_rounded),
           onSelected: (value) {
-            if (value == 'broadcast') {
-              _startAdvertising();
-            }
-
-            if (value == 'scan') {
-              _startDiscovery();
-            }
-
-            if (value == 'stop') {
-              _stopDiscovery();
-            }
-
-            if (value == 'info') {
-              _showDeviceInfo();
-            }
+            if (value == 'broadcast') _startAdvertising();
+            if (value == 'scan') _startDiscovery();
+            if (value == 'stop') _stopDiscovery();
+            if (value == 'info') _showDeviceInfo();
           },
           itemBuilder: (context) => [
             const PopupMenuItem(
@@ -643,7 +638,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                 title: Text('Broadcast device'),
               ),
             ),
-
             const PopupMenuItem(
               value: 'scan',
               child: ListTile(
@@ -651,7 +645,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                 title: Text('Scan nearby'),
               ),
             ),
-
             if (_isDiscovering)
               const PopupMenuItem(
                 value: 'stop',
@@ -660,7 +653,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                   title: Text('Stop scanning'),
                 ),
               ),
-
             const PopupMenuItem(
               value: 'info',
               child: ListTile(
@@ -674,22 +666,15 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
     );
   }
 
-  // ============================================================
-  // NO DEVICES / NEARBY PANEL
-  // ============================================================
-
   Widget _buildNearbyPanel() {
     final bool hasDevice = _nearbyDevices.isNotEmpty;
-
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
       child: Column(
         children: [
           _buildDiscoveryHero(),
-
           if (hasDevice) ...[
             const SizedBox(height: 10),
-
             _sectionCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -706,7 +691,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                           ),
                         ),
                       ),
-
                       Text(
                         '${_nearbyDevices.length} found',
                         style: const TextStyle(
@@ -716,9 +700,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 10),
-
                   ..._nearbyDevices.entries.map(
                     (entry) => _buildDeviceRow(entry.key, entry.value),
                   ),
@@ -733,9 +715,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
 
   Widget _buildDiscoveryHero() {
     final bool hasDevices = _nearbyDevices.isNotEmpty;
-
     return Container(
-      margin: const EdgeInsets.fromLTRB(0, 0, 0, 0),
       padding: const EdgeInsets.fromLTRB(18, 22, 18, 20),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: .94),
@@ -761,17 +741,13 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                   active: true,
                   icon: Icons.phone_android_rounded,
                 ),
-
                 const SizedBox(width: 6),
-
                 Expanded(
                   child: _connectionGraphic(
                     active: hasDevices || _isDiscovering,
                   ),
                 ),
-
                 const SizedBox(width: 6),
-
                 _deviceOrb(
                   label: 'Nearby',
                   active: hasDevices,
@@ -780,9 +756,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
               ],
             ),
           ),
-
           const SizedBox(height: 5),
-
           Text(
             _isDiscovering
                 ? 'Discovering nearby devices...'
@@ -796,9 +770,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
               color: darkText,
             ),
           ),
-
           const SizedBox(height: 7),
-
           Text(
             _isDiscovering
                 ? 'Make sure the other device has\n'
@@ -814,9 +786,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
               height: 1.45,
             ),
           ),
-
           const SizedBox(height: 15),
-
           if (_isDiscovering)
             const SizedBox(
               width: 22,
@@ -843,10 +813,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
     );
   }
 
-  // ============================================================
-  // NEARBY DEVICE
-  // ============================================================
-
   Widget _buildDeviceRow(String endpointId, String name) {
     return Container(
       margin: const EdgeInsets.only(top: 4),
@@ -859,9 +825,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
       child: Row(
         children: [
           _iconCircle(Icons.phone_android_rounded),
-
           const SizedBox(width: 11),
-
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -875,9 +839,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                     color: darkText,
                   ),
                 ),
-
                 const SizedBox(height: 3),
-
                 const Text(
                   'Available nearby • ~2 m',
                   style: TextStyle(fontSize: 11, color: Colors.black54),
@@ -885,7 +847,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
               ],
             ),
           ),
-
           FilledButton(
             onPressed: () => _connectToDevice(endpointId, name),
             style: _greenButtonStyle(
@@ -898,13 +859,8 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
     );
   }
 
-  // ============================================================
-  // INCOMING CONNECTION SCREEN
-  // ============================================================
-
   Widget _buildIncomingConnectionPanel() {
     final String deviceName = _pendingConnectionName ?? 'Nearby Device';
-
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
       child: Container(
@@ -933,7 +889,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                       icon: Icons.phone_android_rounded,
                     ),
                   ),
-
                   Container(
                     width: 42,
                     height: 42,
@@ -947,7 +902,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                       size: 22,
                     ),
                   ),
-
                   Expanded(
                     child: _incomingDeviceGraphic(
                       icon: Icons.phone_android_rounded,
@@ -956,9 +910,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                 ],
               ),
             ),
-
             const SizedBox(height: 6),
-
             Text(
               '$deviceName wants to connect',
               textAlign: TextAlign.center,
@@ -968,9 +920,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                 color: darkText,
               ),
             ),
-
             const SizedBox(height: 7),
-
             const Text(
               'This will establish a local connection\n'
               'for messaging.',
@@ -981,9 +931,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                 height: 1.45,
               ),
             ),
-
             const SizedBox(height: 18),
-
             Row(
               children: [
                 Expanded(
@@ -1003,9 +951,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                     ),
                   ),
                 ),
-
                 const SizedBox(width: 10),
-
                 Expanded(
                   child: FilledButton(
                     onPressed: _acceptIncomingConnection,
@@ -1045,10 +991,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
     );
   }
 
-  // ============================================================
-  // CONNECTED PANEL
-  // ============================================================
-
   Widget _buildConnectedPanel() {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 3),
@@ -1063,9 +1005,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                   size: 50,
                   iconSize: 27,
                 ),
-
                 const SizedBox(width: 12),
-
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1079,9 +1019,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                           color: darkText,
                         ),
                       ),
-
                       const SizedBox(height: 4),
-
                       const Row(
                         children: [
                           Icon(Icons.circle, size: 7, color: Color(0xFF35B96D)),
@@ -1098,7 +1036,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                     ],
                   ),
                 ),
-
                 const Icon(
                   Icons.signal_cellular_alt_rounded,
                   color: forestGreen,
@@ -1107,9 +1044,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
               ],
             ),
           ),
-
           const SizedBox(height: 9),
-
           _connectionInfoCard(),
         ],
       ),
@@ -1125,9 +1060,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
           Row(
             children: [
               _smallShield(),
-
               const SizedBox(width: 9),
-
               const Text(
                 'Connection Info',
                 style: TextStyle(
@@ -1138,15 +1071,10 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
               ),
             ],
           ),
-
           const SizedBox(height: 10),
-
           _infoRow('Status', 'Connected'),
-
           _infoRow('Mode', 'Nearby'),
-
           _infoRow('Internet', 'Not required'),
-
           _infoRow('Security', 'Secure connection'),
         ],
       ),
@@ -1164,7 +1092,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
               style: const TextStyle(fontSize: 11.5, color: Colors.black54),
             ),
           ),
-
           Expanded(
             child: Text(
               value,
@@ -1181,10 +1108,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
     );
   }
 
-  // ============================================================
-  // MESSAGES
-  // ============================================================
-
   Widget _buildMessages() {
     if (_messages.isEmpty) {
       return Center(
@@ -1194,9 +1117,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _iconCircle(Icons.forum_outlined, size: 72, iconSize: 34),
-
               const SizedBox(height: 14),
-
               const Text(
                 'No messages yet',
                 style: TextStyle(
@@ -1205,9 +1126,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                   color: darkText,
                 ),
               ),
-
               const SizedBox(height: 6),
-
               Text(
                 _connectedEndpoint == null
                     ? 'Connect to a nearby device to start chatting.'
@@ -1240,7 +1159,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
 
   Widget _buildMessageBubble(ChatMessage message, bool showTime) {
     final bool mine = message.isMine;
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
@@ -1253,7 +1171,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
             _iconCircle(Icons.person_rounded, size: 38, iconSize: 21),
             const SizedBox(width: 7),
           ],
-
           Flexible(
             child: Container(
               constraints: BoxConstraints(
@@ -1287,9 +1204,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                       color: mine ? Colors.white : darkText,
                     ),
                   ),
-
                   const SizedBox(height: 4),
-
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.end,
@@ -1301,7 +1216,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                           color: mine ? Colors.white70 : Colors.black45,
                         ),
                       ),
-
                       if (mine) ...[
                         const SizedBox(width: 4),
                         const Icon(
@@ -1321,10 +1235,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
     );
   }
 
-  // ============================================================
-  // FEATURE STRIP
-  // ============================================================
-
   Widget _buildFeatureStrip() {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 3, 16, 4),
@@ -1343,9 +1253,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
               subtitle: 'Required',
             ),
           ),
-
           _VerticalDivider(),
-
           Expanded(
             child: _FeatureItem(
               icon: Icons.link_rounded,
@@ -1353,9 +1261,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
               subtitle: '(nearby)',
             ),
           ),
-
           _VerticalDivider(),
-
           Expanded(
             child: _FeatureItem(
               icon: Icons.shield_rounded,
@@ -1368,13 +1274,8 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
     );
   }
 
-  // ============================================================
-  // MESSAGE INPUT
-  // ============================================================
-
   Widget _buildMessageInput() {
     final bool canSend = _connectedEndpoint != null;
-
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 6, 12, 9),
       decoration: BoxDecoration(
@@ -1396,9 +1297,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
               icon: Icons.add_rounded,
               onPressed: canSend ? () {} : null,
             ),
-
             const SizedBox(width: 7),
-
             Expanded(
               child: Container(
                 constraints: const BoxConstraints(minHeight: 46),
@@ -1436,9 +1335,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                 ),
               ),
             ),
-
             const SizedBox(width: 7),
-
             _roundActionButton(
               icon: Icons.send_rounded,
               onPressed: canSend ? _sendMessage : null,
@@ -1474,10 +1371,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
       ),
     );
   }
-
-  // ============================================================
-  // UI HELPERS
-  // ============================================================
 
   Widget _sectionCard({
     required Widget child,
@@ -1523,7 +1416,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                 ),
                 child: Icon(icon, color: forestGreen, size: 36),
               ),
-
               if (active)
                 Positioned(
                   right: 1,
@@ -1540,9 +1432,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                 ),
             ],
           ),
-
           const SizedBox(height: 5),
-
           Text(
             label,
             maxLines: 1,
@@ -1578,9 +1468,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
             ),
           ),
         ),
-
         const SizedBox(height: 6),
-
         Container(
           width: 40,
           height: 40,
@@ -1594,9 +1482,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
             size: 23,
           ),
         ),
-
         const SizedBox(height: 6),
-
         Row(
           children: List.generate(
             5,
@@ -1668,10 +1554,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
     );
   }
 
-  // ============================================================
-  // DEVICE INFO
-  // ============================================================
-
   void _showDeviceInfo() {
     showModalBottomSheet(
       context: context,
@@ -1694,17 +1576,13 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-
                 const SizedBox(height: 18),
-
                 _iconCircle(
                   Icons.devices_other_rounded,
                   size: 56,
                   iconSize: 29,
                 ),
-
                 const SizedBox(height: 11),
-
                 const Text(
                   'Local Mesh Chat',
                   style: TextStyle(
@@ -1713,9 +1591,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                     color: darkText,
                   ),
                 ),
-
                 const SizedBox(height: 7),
-
                 const Text(
                   'Nearby device-to-device messaging.\n'
                   'No internet connection is required.',
@@ -1726,9 +1602,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                     fontSize: 13,
                   ),
                 ),
-
                 const SizedBox(height: 16),
-
                 if (kIsWeb)
                   Container(
                     width: double.infinity,
@@ -1748,7 +1622,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
                       ),
                     ),
                   ),
-
                 const SizedBox(height: 10),
               ],
             ),
@@ -1758,36 +1631,23 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
     );
   }
 
-  // ============================================================
-  // FORMATTING
-  // ============================================================
-
   String _formatTime(DateTime time) {
     final int hour = time.hour;
     final int minute = time.minute;
-
     final String period = hour >= 12 ? 'PM' : 'AM';
-
     final int displayHour = hour % 12 == 0 ? 12 : hour % 12;
-
     return '$displayHour:'
         '${minute.toString().padLeft(2, '0')} '
         '$period';
   }
-
-  // ============================================================
-  // DISPOSE
-  // ============================================================
 
   @override
   void dispose() {
     if (!kIsWeb) {
       _nearbyService.stop();
     }
-
     _messageController.dispose();
     _scrollController.dispose();
-
     super.dispose();
   }
 }
@@ -1812,9 +1672,7 @@ class _FeatureItem extends StatelessWidget {
     return Column(
       children: [
         Icon(icon, size: 17, color: _LocalMeshChatState.forestGreen),
-
         const SizedBox(height: 3),
-
         Text(
           title,
           textAlign: TextAlign.center,
@@ -1824,7 +1682,6 @@ class _FeatureItem extends StatelessWidget {
             color: _LocalMeshChatState.darkText,
           ),
         ),
-
         Text(
           subtitle,
           textAlign: TextAlign.center,
@@ -1873,13 +1730,9 @@ class _LeafPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     _leaf(canvas, paint, Offset(size.width - 25, 115), 30, -0.7);
-
     _leaf(canvas, paint, Offset(size.width - 52, 150), 25, -0.45);
-
     _leaf(canvas, paint, Offset(18, size.height - 70), 28, 2.7);
-
     _leaf(canvas, paint, Offset(48, size.height - 43), 23, 2.95);
-
     _leaf(canvas, paint, Offset(size.width - 25, size.height - 105), 23, -0.7);
   }
 
@@ -1891,26 +1744,19 @@ class _LeafPainter extends CustomPainter {
     double angle,
   ) {
     canvas.save();
-
     canvas.translate(center.dx, center.dy);
-
     canvas.rotate(angle);
-
     final path = Path()
       ..moveTo(0, 0)
       ..quadraticBezierTo(length * .65, -length * .55, length, 0)
       ..quadraticBezierTo(length * .62, length * .55, 0, 0)
       ..close();
-
     canvas.drawPath(path, paint);
-
     final vein = Paint()
       ..color = const Color(0xFF7FAE76).withValues(alpha: .20)
       ..strokeWidth = 1.1
       ..style = PaintingStyle.stroke;
-
     canvas.drawLine(const Offset(0, 0), Offset(length * .82, 0), vein);
-
     canvas.restore();
   }
 
