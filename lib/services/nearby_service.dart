@@ -1,12 +1,74 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:nearby_connections/nearby_connections.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class NearbyService {
   static const String serviceId = 'com.example.local_mesh_chat';
 
   final Nearby _nearby = Nearby();
 
-  // ===== Advertising =====
+  // ============================================================
+  // PERMISSIONS
+  // ============================================================
+
+  Future<bool> requestPermissions() async {
+    if (kIsWeb) return true;
+
+    final permissions = <Permission>[
+      Permission.location,
+      Permission.locationWhenInUse,
+      Permission.bluetooth,
+      Permission.bluetoothScan,
+      Permission.bluetoothConnect,
+      Permission.bluetoothAdvertise,
+      Permission.nearbyWifiDevices,
+    ];
+
+    final Map<Permission, PermissionStatus> statuses = await permissions
+        .request();
+
+    statuses.forEach((permission, status) {
+      debugPrint('Permission $permission: $status');
+    });
+
+    final locationGranted = statuses[Permission.location]?.isGranted ?? false;
+    final bluetoothGranted =
+        (statuses[Permission.bluetoothScan]?.isGranted ?? false) &&
+        (statuses[Permission.bluetoothConnect]?.isGranted ?? false);
+
+    if (Platform.isAndroid) {
+      if (!locationGranted || !bluetoothGranted) {
+        debugPrint(
+          'CRITICAL: Missing permissions! '
+          'Location: $locationGranted, Bluetooth: $bluetoothGranted',
+        );
+        return false;
+      }
+    }
+    return true;
+  }
+
+  Future<bool> hasPermissions() async {
+    if (kIsWeb) return true;
+    final location = await Permission.location.status;
+    final bluetoothScan = await Permission.bluetoothScan.status;
+    final bluetoothConnect = await Permission.bluetoothConnect.status;
+
+    return location.isGranted &&
+        bluetoothScan.isGranted &&
+        bluetoothConnect.isGranted;
+  }
+
+  Future<void> openAppSettingsPage() async {
+    await openAppSettings();
+  }
+
+  // ============================================================
+  // ADVERTISING
+  // ============================================================
+
   Future<bool> startAdvertising({
     required String deviceName,
     required Function(String, ConnectionInfo) onConnectionInitiated,
@@ -22,6 +84,7 @@ class NearbyService {
         onDisconnected: onDisconnected,
         serviceId: serviceId,
       );
+      debugPrint('Advertising started as "$deviceName"');
       return true;
     } catch (e) {
       debugPrint('Advertising error: $e');
@@ -29,7 +92,10 @@ class NearbyService {
     }
   }
 
-  // ===== Discovery =====
+  // ============================================================
+  // DISCOVERY
+  // ============================================================
+
   Future<bool> startDiscovery({
     required String deviceName,
     required Function(String, String, String) onEndpointFound,
@@ -43,6 +109,7 @@ class NearbyService {
         onEndpointLost: onEndpointLost,
         serviceId: serviceId,
       );
+      debugPrint('Discovery started as "$deviceName"');
       return true;
     } catch (e) {
       debugPrint('Discovery error: $e');
@@ -51,14 +118,27 @@ class NearbyService {
   }
 
   Future<void> stopDiscovery() async {
-    await _nearby.stopDiscovery();
+    try {
+      await _nearby.stopDiscovery();
+      debugPrint('Discovery stopped');
+    } catch (e) {
+      debugPrint('stopDiscovery error: $e');
+    }
   }
 
   Future<void> stopAdvertising() async {
-    await _nearby.stopAdvertising();
+    try {
+      await _nearby.stopAdvertising();
+      debugPrint('Advertising stopped');
+    } catch (e) {
+      debugPrint('stopAdvertising error: $e');
+    }
   }
 
-  // ===== Connections =====
+  // ============================================================
+  // CONNECTIONS
+  // ============================================================
+
   Future<void> requestConnection({
     required String deviceName,
     required String endpointId,
@@ -89,7 +169,10 @@ class NearbyService {
     await _nearby.rejectConnection(endpointId);
   }
 
-  // ===== Messaging =====
+  // ============================================================
+  // MESSAGING
+  // ============================================================
+
   Future<void> sendBytes({
     required String endpointId,
     required Uint8List data,
@@ -97,7 +180,10 @@ class NearbyService {
     await _nearby.sendBytesPayload(endpointId, data);
   }
 
-  // ===== Cleanup =====
+  // ============================================================
+  // CLEANUP
+  // ============================================================
+
   Future<void> stop() async {
     try {
       await _nearby.stopAdvertising();

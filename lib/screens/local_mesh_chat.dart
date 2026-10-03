@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:nearby_connections/nearby_connections.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 import '../models/chat_message.dart';
 import '../services/nearby_service.dart';
@@ -58,86 +57,9 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
     _requestPermissions();
   }
 
-  // ============================================================
-  // PERMISSIONS
-  // ============================================================
-
   Future<void> _requestPermissions() async {
     if (kIsWeb) return;
-
-    final permissions = <Permission>[
-      Permission.location,
-      Permission.locationWhenInUse,
-      Permission.bluetooth,
-      Permission.bluetoothScan,
-      Permission.bluetoothConnect,
-      Permission.bluetoothAdvertise,
-      Permission.nearbyWifiDevices,
-    ];
-
-    final Map<Permission, PermissionStatus> statuses = await permissions
-        .request();
-
-    statuses.forEach((permission, status) {
-      debugPrint('Permission $permission: $status');
-    });
-
-    if (!mounted) return;
-
-    final locationGranted = statuses[Permission.location]?.isGranted ?? false;
-    final bluetoothGranted =
-        (statuses[Permission.bluetoothScan]?.isGranted ?? false) &&
-        (statuses[Permission.bluetoothConnect]?.isGranted ?? false);
-
-    if (!locationGranted || !bluetoothGranted) {
-      _showPermissionDialog();
-    }
-  }
-
-  void _showPermissionDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: cream,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          title: const Text(
-            'Permissions Required',
-            style: TextStyle(color: darkText, fontWeight: FontWeight.w800),
-          ),
-          content: const Text(
-            'This app needs the following permissions to work:\n\n'
-            '• Location (for Bluetooth scanning)\n'
-            '• Bluetooth Scan\n'
-            '• Bluetooth Connect\n'
-            '• Bluetooth Advertise\n'
-            '• Nearby Devices\n\n'
-            'Please grant all permissions to use Local Mesh Chat.',
-            style: TextStyle(color: Colors.black54, height: 1.5),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                _requestPermissions();
-              },
-              child: const Text('Retry'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                openAppSettings();
-              },
-              style: FilledButton.styleFrom(backgroundColor: forestGreen),
-              child: const Text('Open Settings'),
-            ),
-          ],
-        );
-      },
-    );
+    await _nearbyService.requestPermissions();
   }
 
   // ============================================================
@@ -171,9 +93,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _status = 'Broadcast error: $e';
-      });
+      setState(() => _status = 'Broadcast error: $e');
     }
   }
 
@@ -187,10 +107,8 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
         _isDiscovering = true;
         _status = 'Searching for nearby devices...';
       });
-
       await Future.delayed(const Duration(milliseconds: 900));
       if (!mounted) return;
-
       setState(() {
         _nearbyDevices
           ..clear()
@@ -231,12 +149,9 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
       );
 
       if (!mounted) return;
-
       setState(() {
         _isDiscovering = result;
-        if (!result) {
-          _status = 'Discovery could not start';
-        }
+        if (!result) _status = 'Discovery could not start';
       });
     } catch (e) {
       if (!mounted) return;
@@ -273,9 +188,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
 
   Future<void> _connectToDevice(String endpointId, String endpointName) async {
     if (kIsWeb) {
-      setState(() {
-        _status = 'Connecting to $endpointName...';
-      });
+      setState(() => _status = 'Connecting to $endpointName...');
       await Future.delayed(const Duration(milliseconds: 800));
       if (!mounted) return;
       setState(() {
@@ -290,9 +203,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
     }
 
     try {
-      setState(() {
-        _status = 'Connecting to $endpointName...';
-      });
+      setState(() => _status = 'Connecting to $endpointName...');
 
       await _nearbyService.requestConnection(
         deviceName: 'Local Chat Device',
@@ -303,9 +214,7 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
       );
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _status = 'Connection error: $e';
-      });
+      setState(() => _status = 'Connection error: $e');
     }
   }
 
@@ -428,10 +337,6 @@ class _LocalMeshChatState extends State<LocalMeshChat> {
       _status = 'Device disconnected';
     });
   }
-
-  // ============================================================
-  // MESSAGES
-  // ============================================================
 
   void _onPayloadReceived(String endpointId, Payload payload) {
     if (payload.type != PayloadType.BYTES) return;
