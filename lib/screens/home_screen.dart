@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
-
+import 'activity_five_screen.dart';
 import 'activity_one_screen.dart';
 import 'network_monitor_screen.dart';
 import 'network_diagnostic_dashboard.dart';
@@ -60,6 +60,13 @@ class HomeScreen extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const SettingsScreen()),
+    );
+  }
+
+  void _openActivityFive(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ActivityFiveScreen()),
     );
   }
 
@@ -226,7 +233,7 @@ class HomeScreen extends StatelessWidget {
                         // NETWORK DIAGNOSTIC
                         // ==================================================
                         _PortfolioCard(
-                          title: 'Network Diagnostic Dashboard',
+                          title: 'Activity 3 – Network Diagnostic Dashboard',
                           subtitle: 'Test ping, download & upload speed',
                           icon: Icons.bar_chart_rounded,
                           onTap: () => _openDiagnostic(context),
@@ -238,7 +245,7 @@ class HomeScreen extends StatelessWidget {
                         // LOCAL MESH CHAT
                         // ==================================================
                         _PortfolioCard(
-                          title: 'Local Mesh Chat',
+                          title: 'Activity 4 – Local Mesh Chat',
                           subtitle: 'Offline messaging with nearby devices',
                           icon: Icons.forum_rounded,
                           isHighlighted: true,
@@ -247,6 +254,16 @@ class HomeScreen extends StatelessWidget {
 
                         const SizedBox(height: 9),
 
+                        // ==================================================
+                        // ACTIVITY 5 (NEW)
+                        // ==================================================
+                        _PortfolioCard(
+                          title: 'Activity 5 – Custom Map',
+                          subtitle: 'Geofencing tracker in Lianga',
+                          icon: Icons.map_rounded,
+                          onTap: () => _openActivityFive(context),
+                        ),
+                        const SizedBox(height: 9),
                         // ==================================================
                         // SETTINGS
                         // ==================================================

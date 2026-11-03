@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- ============================================================ -->
-    <!-- NEARBY CONNECTIONS PERMISSIONS                                -->
+    <!-- NEARBY CONNECTIONS & LOCATION PERMISSIONS                     -->
     <!-- ============================================================ -->
 
     <!-- WiFi State (for WiFi Direct) -->
@@ -16,7 +16,7 @@
         android:name="android.permission.BLUETOOTH_ADMIN"
         android:maxSdkVersion="30" />
 
-    <!-- Location: REQUIRED for Bluetooth scanning on ALL Android versions -->
+    <!-- Location: REQUIRED for Bluetooth scanning & Geolocation -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
@@ -34,7 +34,7 @@
         android:name="android.permission.NEARBY_WIFI_DEVICES"
         android:usesPermissionFlags="neverForLocation" />
 
-    <!-- Internet -->
+    <!-- Internet (for Google Maps and network features) -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
@@ -47,6 +47,13 @@
         android:label="portfolio_app"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+
+        <!-- ============================================================ -->
+        <!-- GOOGLE MAPS API KEY (Para mo-load ang mapa)                   -->
+        <!-- ============================================================ -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyBIFoT3ioxaSNpByN-o2LFXNCsPLQqGk1o" />
 
         <activity
             android:name=".MainActivity"
